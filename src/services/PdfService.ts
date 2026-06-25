@@ -1,5 +1,5 @@
 
-import RNHTMLtoPDF from 'react-native-html-to-pdf';
+import { generatePDF}  from 'react-native-html-to-pdf';
 import { Conversation, SmsMessage } from './SmsService';
 
 function formatDate(dateStr: string): string {
@@ -179,7 +179,7 @@ export async function exportToPdf(
       directory: 'Downloads',
     };
 
-    const pdf = await RNHTMLtoPDF.convert(options);
+    const pdf = await generatePDF(options);
     if (pdf.filePath) {
       filePaths.push(pdf.filePath);
     }
@@ -222,7 +222,7 @@ export async function exportToCsv(
     directory: 'Downloads',
   };
 
-  const file = await RNHTMLtoPDF.convert(options);
+  const file = await generatePDF(options);
 
   return {
     filePaths: file.filePath ? [file.filePath] : [],
