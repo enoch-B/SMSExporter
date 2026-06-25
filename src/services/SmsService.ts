@@ -58,7 +58,7 @@ async function buildContactsMap(): Promise<{ [phone: string]: string }> {
 
 function readSmsBox(box: string): Promise<SmsMessage[]> {
   return new Promise((resolve, reject) => {
-    const filter = { box, maxCount: 10000 };
+    const filter = { box, maxCount: 15000 };
     SmsAndroid.list(
       JSON.stringify(filter),
       (fail: string) => reject(fail),
