@@ -6,12 +6,10 @@ import {
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
-  Share,
   ScrollView,
-  Linking,
-  Platform,
   Alert,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   exportToPdf,
   exportToCsv,
@@ -20,6 +18,12 @@ import {
 } from '../services/PdfService';
 import { Conversation } from '../services/SmsService';
 import { addExportRecord } from '../services/ExportHistoryService';
+import {
+  shareExportFile,
+  openExportFile,
+  openDownloadsFolder,
+} from '../services/FileShareService';
+import { commonStyles } from '../styles/common';
 
 function ExportProgressScreen({ route, navigation }: any) {
   const { selected, totalMessages, format } = route.params as {
@@ -34,7 +38,7 @@ function ExportProgressScreen({ route, navigation }: any) {
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<ExportResult | null>(null);
-  const [logs, setLogs] = useState<string[]>(['→ Starting export...']);
+  const [logs, setLogs] = useState<string[]>(['Starting export...']);
   const [isExporting, setIsExporting] = useState(true);
   const exportStarted = useRef(false);
 
@@ -59,9 +63,7 @@ function ExportProgressScreen({ route, navigation }: any) {
           ? selected[0].name
           : `${selected.length} conversations`;
       const sizeLabel =
-        filePaths.length > 0
-          ? await getFileSizeLabel(filePaths[0])
-          : '—';
+        filePaths.length > 0 ? await getFileSizeLabel(filePaths[0]) : '—';
 
       await addExportRecord({
         name: primaryName,
@@ -78,7 +80,7 @@ function ExportProgressScreen({ route, navigation }: any) {
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Could not save export history.';
-      addLog(`⚠ ${message}`);
+      addLog(message);
     }
   };
 
@@ -100,10 +102,10 @@ function ExportProgressScreen({ route, navigation }: any) {
         const conversation = selected[i];
         setCurrentConversationIndex(i);
         addLog(
-          `→ Exporting ${conversation.name} (${i + 1} of ${selected.length})...`
+          `Exporting ${conversation.name} (${i + 1} of ${selected.length})...`
         );
 
-        const res = await exportFn(conversation, (proc, _total) => {
+        const res = await exportFn(conversation, proc => {
           setProcessed(messagesCompleted + proc);
         });
 
@@ -111,18 +113,18 @@ function ExportProgressScreen({ route, navigation }: any) {
         messagesCompleted += conversation.messages.length;
         setProcessed(messagesCompleted);
         setCompletedConversations(i + 1);
-        addLog(`✓ ${conversation.name} exported successfully`);
+        addLog(`${conversation.name} exported successfully`);
       }
 
       setResult({ filePaths: allFilePaths, totalMessages });
-      addLog('✓ All exports complete!');
+      addLog('All exports complete');
       setDone(true);
       await saveHistory('done', allFilePaths);
     } catch (e: unknown) {
       const message =
         e instanceof Error ? e.message : 'Export failed. Please try again.';
       setError(message);
-      addLog('✗ Export failed');
+      addLog('Export failed');
       await saveHistory('failed', allFilePaths, message);
     } finally {
       setIsExporting(false);
@@ -130,9 +132,8 @@ function ExportProgressScreen({ route, navigation }: any) {
   };
 
   const rawProgress = totalMessages > 0 ? processed / totalMessages : 0;
-  const progress = isExporting && !done && !error
-    ? Math.max(rawProgress, 0.05)
-    : rawProgress;
+  const progress =
+    isExporting && !done && !error ? Math.max(rawProgress, 0.05) : rawProgress;
   const percent = Math.min(Math.floor(progress * 100), 100);
 
   const currentConversation = selected[currentConversationIndex];
@@ -140,12 +141,7 @@ function ExportProgressScreen({ route, navigation }: any) {
   const handleShare = async () => {
     if (!result?.filePaths.length) return;
     try {
-      const filePath = result.filePaths[0];
-      await Share.share({
-        title: 'SMS Export',
-        message: `SMS export: ${currentConversation?.name || 'conversation'}`,
-        url: Platform.OS === 'android' ? `file://${filePath}` : filePath,
-      });
+      await shareExportFile(result.filePaths[0]);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Could not share the export file.';
@@ -156,23 +152,22 @@ function ExportProgressScreen({ route, navigation }: any) {
   const handleOpenInFiles = async () => {
     if (!result?.filePaths.length) return;
     try {
-      const filePath = result.filePaths[0];
-      const url = Platform.OS === 'android' ? `file://${filePath}` : filePath;
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) {
+      await openExportFile(result.filePaths[0]);
+    } catch {
+      try {
+        await openDownloadsFolder();
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Could not open the file. Check your Downloads folder.';
         Alert.alert(
-          'Open file',
-          `File saved to:\n${filePath}\n\nOpen your Files app and check Downloads.`
+          'Open failed',
+          result.filePaths[0]
+            ? `${message}\n\nFile saved to:\n${result.filePaths[0]}`
+            : message
         );
-        return;
       }
-      await Linking.openURL(url);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Could not open the file. Check your Downloads folder.';
-      Alert.alert('Open failed', message);
     }
   };
 
@@ -180,10 +175,12 @@ function ExportProgressScreen({ route, navigation }: any) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>
+      <View style={commonStyles.screenHeader}>
+        <View style={commonStyles.headerSpacer} />
+        <Text style={commonStyles.headerTitle}>
           {done ? 'Export complete' : error ? 'Export failed' : 'Exporting...'}
         </Text>
+        <View style={commonStyles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
@@ -213,18 +210,22 @@ function ExportProgressScreen({ route, navigation }: any) {
 
         <View style={styles.statsRow}>
           <Text style={styles.stat}>
-            <Text style={styles.statBold}>{processed.toLocaleString()}</Text>
-            {' '}/ {totalMessages.toLocaleString()} messages
+            <Text style={styles.statBold}>{processed.toLocaleString()}</Text> /{' '}
+            {totalMessages.toLocaleString()} messages
           </Text>
-          <Text style={styles.stat}>
-            {done ? '✓ Done' : `${percent}%`}
-          </Text>
+          <View style={styles.statRight}>
+            {done ? (
+              <Icon name="check" size={16} color="#0F6E56" />
+            ) : (
+              <Text style={styles.stat}>{percent}%</Text>
+            )}
+          </View>
         </View>
 
         {!done && !error && selected.length > 1 && (
           <Text style={styles.conversationProgress}>
-            Conversation {Math.min(currentConversationIndex + 1, selected.length)} of{' '}
-            {selected.length}
+            Conversation {Math.min(currentConversationIndex + 1, selected.length)}{' '}
+            of {selected.length}
           </Text>
         )}
 
@@ -241,8 +242,12 @@ function ExportProgressScreen({ route, navigation }: any) {
 
         {error !== '' && (
           <View style={styles.errorCard}>
-            <Text style={styles.errorText}>✗ {error}</Text>
+            <View style={styles.errorHeader}>
+              <Icon name="close" size={18} color="#A32D2D" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
             <TouchableOpacity style={styles.retryBtn} onPress={startExport}>
+              <Icon name="refresh" size={18} color="#ffffff" />
               <Text style={styles.retryBtnText}>Try again</Text>
             </TouchableOpacity>
           </View>
@@ -251,13 +256,13 @@ function ExportProgressScreen({ route, navigation }: any) {
         {done && (
           <View style={styles.doneCard}>
             <View style={styles.doneIcon}>
-              <Text style={styles.doneCheck}>✓</Text>
+              <Icon name="check" size={18} color="#ffffff" />
             </View>
             <View style={styles.doneInfo}>
               <Text style={styles.doneTitle}>Export successful</Text>
               <Text style={styles.doneSub}>
-                {totalMessages.toLocaleString()} messages · {result?.filePaths.length}{' '}
-                file(s) · saved to Downloads
+                {totalMessages.toLocaleString()} messages ·{' '}
+                {result?.filePaths.length} file(s) · saved to Downloads
               </Text>
               {result?.filePaths[0] ? (
                 <Text style={styles.filePath} numberOfLines={2}>
@@ -270,11 +275,13 @@ function ExportProgressScreen({ route, navigation }: any) {
 
         {done && (
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
-              <Text style={styles.actionBtnText}>📤 Share</Text>
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleShare}>
+              <Icon name="share-variant" size={18} color="#ffffff" />
+              <Text style={styles.primaryBtnText}>Share</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn} onPress={handleOpenInFiles}>
-              <Text style={styles.actionBtnText}>📁 Open</Text>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={handleOpenInFiles}>
+              <Icon name="folder-open" size={18} color="#555555" />
+              <Text style={styles.secondaryBtnText}>Open</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -284,7 +291,8 @@ function ExportProgressScreen({ route, navigation }: any) {
             style={styles.homeBtn}
             onPress={() => navigation.popToTop()}
           >
-            <Text style={styles.homeBtnText}>🏠 Back to home</Text>
+            <Icon name="home" size={18} color="#555555" />
+            <Text style={styles.homeBtnText}>Back to home</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -294,13 +302,6 @@ function ExportProgressScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#eeeeee',
-  },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: '#111111' },
   body: { padding: 16, gap: 16 },
   contactRow: {
     flexDirection: 'row',
@@ -331,9 +332,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#1D9E75',
     borderRadius: 100,
   },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   stat: { fontSize: 12, color: '#888888' },
   statBold: { fontWeight: '600', color: '#111111' },
+  statRight: { flexDirection: 'row', alignItems: 'center' },
   conversationProgress: {
     fontSize: 12,
     color: '#1D9E75',
@@ -358,9 +364,17 @@ const styles = StyleSheet.create({
     borderColor: '#F09595',
     gap: 10,
   },
-  errorText: { fontSize: 13, color: '#A32D2D' },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  errorText: { flex: 1, fontSize: 13, color: '#A32D2D' },
   retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
+    gap: 6,
     backgroundColor: '#A32D2D',
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -385,27 +399,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  doneCheck: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
   doneInfo: { flex: 1 },
   doneTitle: { fontSize: 14, fontWeight: '600', color: '#0F6E56' },
   doneSub: { fontSize: 12, color: '#0F6E56', marginTop: 2 },
   filePath: { fontSize: 10, color: '#0F6E56', marginTop: 6, opacity: 0.8 },
   actionRow: { flexDirection: 'row', gap: 10 },
-  actionBtn: {
+  primaryBtn: {
     flex: 1,
-    borderWidth: 0.5,
-    borderColor: '#e0e0e0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#1D9E75',
     borderRadius: 10,
     paddingVertical: 12,
-    alignItems: 'center',
   },
-  actionBtnText: { fontSize: 13, fontWeight: '500', color: '#111111' },
-  homeBtn: {
+  primaryBtnText: { fontSize: 13, fontWeight: '600', color: '#ffffff' },
+  secondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     borderWidth: 0.5,
     borderColor: '#e0e0e0',
     borderRadius: 10,
     paddingVertical: 12,
+    backgroundColor: '#ffffff',
+  },
+  secondaryBtnText: { fontSize: 13, fontWeight: '500', color: '#111111' },
+  homeBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 0.5,
+    borderColor: '#e0e0e0',
+    borderRadius: 10,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
   },
   homeBtnText: { fontSize: 13, fontWeight: '500', color: '#111111' },
 });
