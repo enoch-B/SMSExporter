@@ -9,7 +9,9 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SmsMessage, Conversation } from '../services/SmsService';
+import { commonStyles } from '../styles/common';
 
 function formatTime(dateStr: string): string {
   const date = new Date(parseInt(dateStr));
@@ -95,6 +97,13 @@ function MessageDetailScreen({ route, navigation }: any) {
     ).length;
   }, [conversation.messages, isSearching, trimmedQuery]);
 
+  const handleExport = () => {
+    navigation.navigate('ExportOptions', {
+      selected: [conversation],
+      totalMessages: conversation.count,
+    });
+  };
+
   const renderMessage = ({
     item,
     index,
@@ -152,9 +161,12 @@ function MessageDetailScreen({ route, navigation }: any) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtn}>← Back</Text>
+      <View style={commonStyles.screenHeader}>
+        <TouchableOpacity
+          style={commonStyles.iconBtn}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={22} color="#111111" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerName} numberOfLines={1}>
@@ -164,15 +176,8 @@ function MessageDetailScreen({ route, navigation }: any) {
             {conversation.count.toLocaleString()} messages
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.exportBtn}
-          onPress={() =>
-            navigation.navigate('ExportOptions', {
-              selected: [conversation],
-              totalMessages: conversation.count,
-            })
-          }
-        >
+        <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+          <Icon name="export" size={16} color="#ffffff" />
           <Text style={styles.exportBtnText}>Export</Text>
         </TouchableOpacity>
       </View>
@@ -208,7 +213,8 @@ function MessageDetailScreen({ route, navigation }: any) {
           style={styles.jumpBtn}
           onPress={() => flatListRef.current?.scrollToEnd({ animated: true })}
         >
-          <Text style={styles.jumpBtnText}>⬆ First message</Text>
+          <Icon name="chevron-double-up" size={16} color="#555555" />
+          <Text style={styles.jumpBtnText}>First message</Text>
         </TouchableOpacity>
         <Text style={styles.jumpSeparator}>·</Text>
         <TouchableOpacity
@@ -217,16 +223,15 @@ function MessageDetailScreen({ route, navigation }: any) {
             flatListRef.current?.scrollToIndex({ index: 0, animated: true })
           }
         >
-          <Text style={styles.jumpBtnText}>⬇ Latest message</Text>
+          <Icon name="chevron-double-down" size={16} color="#555555" />
+          <Text style={styles.jumpBtnText}>Latest message</Text>
         </TouchableOpacity>
       </View>
 
       {isSearching && totalMatches === 0 ? (
         <View style={styles.emptySearch}>
           <Text style={styles.emptySearchText}>No messages found</Text>
-          <Text style={styles.emptySearchSub}>
-            Try a different keyword
-          </Text>
+          <Text style={styles.emptySearchSub}>Try a different keyword</Text>
         </View>
       ) : (
         <FlatList
@@ -256,24 +261,16 @@ function MessageDetailScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#eeeeee',
-    backgroundColor: '#ffffff',
-  },
-  backBtn: { fontSize: 15, color: '#1D9E75', width: 55 },
-  headerCenter: { flex: 1, alignItems: 'center' },
+  headerCenter: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   headerName: { fontSize: 15, fontWeight: '600', color: '#111111' },
   headerCount: { fontSize: 11, color: '#aaaaaa', marginTop: 1 },
   exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: '#1D9E75',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 8,
   },
   exportBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
@@ -327,6 +324,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   jumpBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 8,
