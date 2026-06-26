@@ -29,9 +29,12 @@ const COLORS = [
   { bg: '#EEEDFE', text: '#534AB7' },
 ];
 
+const ITEM_HEIGHT = 68;
+
 function ConversationListScreen({ navigation }: any) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingCount, setLoadingCount] = useState(0);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
@@ -41,22 +44,25 @@ function ConversationListScreen({ navigation }: any) {
     loadSms();
   }, []);
 
-  const loadSms = async () => {
-    setLoading(true);
-    const granted = await requestSmsPermission();
-    if (!granted) {
-      setError('SMS permission denied. Please allow it in your phone settings.');
-      setLoading(false);
-      return;
-    }
-    try {
-      const data = await getAllConversations();
-      setConversations(data);
-    } catch (e) {
-      setError('Failed to load messages.');
-    }
+const loadSms = async () => {
+  setLoading(true);
+  setLoadingCount(0);
+  const granted = await requestSmsPermission();
+  if (!granted) {
+    setError('SMS permission denied. Please allow it in your phone settings.');
     setLoading(false);
-  };
+    return;
+  }
+  try {
+    const data = await getAllConversations((found) => {
+      setLoadingCount(found);
+    });
+    setConversations(data);
+  } catch (e) {
+    setError('Failed to load messages.');
+  }
+  setLoading(false);
+};
 
   const filtered = conversations.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -75,14 +81,17 @@ function ConversationListScreen({ navigation }: any) {
     .filter(c => selected.includes(c.address))
     .reduce((sum, c) => sum + c.count, 0);
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#1D9E75" />
-        <Text style={styles.loadingText}>Reading your messages...</Text>
-      </SafeAreaView>
-    );
-  }
+if (loading) {
+  return (
+    <SafeAreaView style={styles.centered}>
+      <ActivityIndicator size="large" color="#1D9E75" />
+      <Text style={styles.loadingText}>Reading your messages...</Text>
+      <Text style={styles.loadingCount}>
+        {loadingCount.toLocaleString()} messages found so far
+      </Text>
+    </SafeAreaView>
+  );
+}
 
   if (error) {
     return (
@@ -125,6 +134,20 @@ function ConversationListScreen({ navigation }: any) {
       <FlatList
         data={filtered}
         keyExtractor={item => item.address}
+        initialNumToRender={20}
+        getItemLayout={(_data, index) => ({
+          length: ITEM_HEIGHT,
+          offset: ITEM_HEIGHT * index,
+          index,
+        })}
+        ListEmptyComponent={() => (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No conversations found</Text>
+            <Text style={styles.emptySub}>
+              {search ? 'Try a different search term' : 'No SMS conversations on this device'}
+            </Text>
+          </View>
+        )}
         renderItem={({ item, index }) => {
           const color = COLORS[index % COLORS.length];
           const isSelected = selected.includes(item.address);
@@ -302,7 +325,16 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
   },
+  loadingCount: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#1D9E75',
+    fontWeight: '500',
+  },
   exportBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
+  empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 24 },
+  emptyText: { fontSize: 16, fontWeight: '500', color: '#111111', marginBottom: 6 },
+  emptySub: { fontSize: 13, color: '#aaaaaa', textAlign: 'center' },
 });
 
 export default ConversationListScreen;

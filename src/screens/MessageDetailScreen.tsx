@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StatusBar,
   FlatList,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import { SmsMessage, Conversation } from '../services/SmsService';
 
@@ -15,19 +16,98 @@ function formatTime(dateStr: string): string {
   return date.toLocaleString();
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function HighlightedText({
+  text,
+  query,
+  isSent,
+}: {
+  text: string;
+  query: string;
+  isSent: boolean;
+}) {
+  if (!query.trim()) {
+    return (
+      <Text
+        style={[
+          styles.bubbleText,
+          isSent ? styles.bubbleTextSent : styles.bubbleTextReceived,
+        ]}
+      >
+        {text}
+      </Text>
+    );
+  }
+
+  const regex = new RegExp(`(${escapeRegExp(query.trim())})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <Text
+      style={[
+        styles.bubbleText,
+        isSent ? styles.bubbleTextSent : styles.bubbleTextReceived,
+      ]}
+    >
+      {parts.map((part, index) =>
+        part.toLowerCase() === query.trim().toLowerCase() ? (
+          <Text
+            key={index}
+            style={[
+              styles.highlight,
+              isSent ? styles.highlightSent : styles.highlightReceived,
+            ]}
+          >
+            {part}
+          </Text>
+        ) : (
+          part
+        )
+      )}
+    </Text>
+  );
+}
+
 function MessageDetailScreen({ route, navigation }: any) {
   const { conversation }: { conversation: Conversation } = route.params;
   const flatListRef = useRef<FlatList>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const renderMessage = ({ item, index }: { item: SmsMessage; index: number }) => {
+  const trimmedQuery = searchQuery.trim();
+  const isSearching = trimmedQuery.length > 0;
+
+  const matchingMessages = useMemo(() => {
+    if (!isSearching) return conversation.messages;
+    const lower = trimmedQuery.toLowerCase();
+    return conversation.messages.filter(msg =>
+      msg.body.toLowerCase().includes(lower)
+    );
+  }, [conversation.messages, isSearching, trimmedQuery]);
+
+  const totalMatches = useMemo(() => {
+    if (!isSearching) return 0;
+    const lower = trimmedQuery.toLowerCase();
+    return conversation.messages.filter(msg =>
+      msg.body.toLowerCase().includes(lower)
+    ).length;
+  }, [conversation.messages, isSearching, trimmedQuery]);
+
+  const renderMessage = ({
+    item,
+    index,
+  }: {
+    item: SmsMessage;
+    index: number;
+  }) => {
     const isSent = item.type === 2;
     const currentDate = new Date(parseInt(item.date)).toDateString();
-    const prevDate =
-      index < conversation.messages.length - 1
-        ? new Date(
-            parseInt(conversation.messages[index + 1].date)
-          ).toDateString()
-        : null;
+    const prevItem = matchingMessages[index + 1];
+    const prevDate = prevItem
+      ? new Date(parseInt(prevItem.date)).toDateString()
+      : null;
     const showDate = currentDate !== prevDate;
 
     return (
@@ -49,14 +129,11 @@ function MessageDetailScreen({ route, navigation }: any) {
               isSent ? styles.bubbleSent : styles.bubbleReceived,
             ]}
           >
-            <Text
-              style={[
-                styles.bubbleText,
-                isSent ? styles.bubbleTextSent : styles.bubbleTextReceived,
-              ]}
-            >
-              {item.body}
-            </Text>
+            <HighlightedText
+              text={item.body}
+              query={trimmedQuery}
+              isSent={isSent}
+            />
             <Text
               style={[
                 styles.bubbleTime,
@@ -75,7 +152,6 @@ function MessageDetailScreen({ route, navigation }: any) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backBtn}>← Back</Text>
@@ -101,7 +177,32 @@ function MessageDetailScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Jump buttons */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchRow}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search messages..."
+            placeholderTextColor="#aaaaaa"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {isSearching && (
+            <TouchableOpacity
+              style={styles.clearSearchBtn}
+              onPress={() => setSearchQuery('')}
+            >
+              <Text style={styles.clearSearchText}>Clear</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {isSearching && (
+          <Text style={styles.matchCount}>
+            {totalMatches.toLocaleString()} of{' '}
+            {conversation.count.toLocaleString()} matches
+          </Text>
+        )}
+      </View>
+
       <View style={styles.jumpBar}>
         <TouchableOpacity
           style={styles.jumpBtn}
@@ -120,23 +221,35 @@ function MessageDetailScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={conversation.messages}
-        keyExtractor={item => item._id}
-        renderItem={renderMessage}
-        inverted
-        contentContainerStyle={styles.messageList}
-        onScrollToIndexFailed={info => {
-          setTimeout(() => {
-            flatListRef.current?.scrollToIndex({
-              index: info.index,
-              animated: true,
-            });
-          }, 500);
-        }}
-      />
+      {isSearching && totalMatches === 0 ? (
+        <View style={styles.emptySearch}>
+          <Text style={styles.emptySearchText}>No messages found</Text>
+          <Text style={styles.emptySearchSub}>
+            Try a different keyword
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={matchingMessages}
+          keyExtractor={item => item._id}
+          renderItem={renderMessage}
+          inverted
+          initialNumToRender={20}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews
+          contentContainerStyle={styles.messageList}
+          onScrollToIndexFailed={info => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToIndex({
+                index: info.index,
+                animated: true,
+              });
+            }, 500);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -164,6 +277,45 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   exportBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
+  searchSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#eeeeee',
+    gap: 6,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: '#111111',
+    borderWidth: 0.5,
+    borderColor: '#e0e0e0',
+  },
+  matchCount: {
+    fontSize: 11,
+    color: '#1D9E75',
+    fontWeight: '500',
+    paddingHorizontal: 2,
+  },
+  clearSearchBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  clearSearchText: {
+    fontSize: 13,
+    color: '#888888',
+    fontWeight: '500',
+  },
   jumpBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -225,9 +377,34 @@ const styles = StyleSheet.create({
   bubbleText: { fontSize: 14, lineHeight: 20 },
   bubbleTextSent: { color: '#ffffff' },
   bubbleTextReceived: { color: '#111111' },
+  highlight: {
+    fontWeight: '700',
+    borderRadius: 2,
+  },
+  highlightSent: {
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    color: '#ffffff',
+  },
+  highlightReceived: {
+    backgroundColor: '#FFF3B0',
+    color: '#111111',
+  },
   bubbleTime: { fontSize: 10, marginTop: 4 },
   bubbleTimeSent: { color: 'rgba(255,255,255,0.7)', textAlign: 'right' },
   bubbleTimeReceived: { color: '#aaaaaa' },
+  emptySearch: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  emptySearchText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111111',
+    marginBottom: 6,
+  },
+  emptySearchSub: { fontSize: 13, color: '#aaaaaa' },
 });
 
 export default MessageDetailScreen;
