@@ -7,11 +7,9 @@ import {
   StatusBar,
   FlatList,
   TouchableOpacity,
-  Share,
-  Platform,
   Alert,
-  Linking,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getExportHistory,
@@ -21,6 +19,11 @@ import {
   ExportRecord,
 } from '../services/ExportHistoryService';
 import { getConversationsByAddresses } from '../services/SmsService';
+import {
+  shareExportFile,
+  openExportFile,
+} from '../services/FileShareService';
+import { commonStyles } from '../styles/common';
 
 function ExportHistoryScreen({ navigation }: any) {
   const [history, setHistory] = useState<ExportRecord[]>([]);
@@ -102,12 +105,7 @@ function ExportHistoryScreen({ navigation }: any) {
       return;
     }
     try {
-      const filePath = item.filePaths[0];
-      await Share.share({
-        title: 'SMS Export',
-        message: `SMS export: ${item.name}`,
-        url: Platform.OS === 'android' ? `file://${filePath}` : filePath,
-      });
+      await shareExportFile(item.filePaths[0]);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Could not share the export file.';
@@ -141,14 +139,7 @@ function ExportHistoryScreen({ navigation }: any) {
       return;
     }
     try {
-      const filePath = item.filePaths[0];
-      const url = Platform.OS === 'android' ? `file://${filePath}` : filePath;
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) {
-        Alert.alert('Open file', `File location:\n${filePath}`);
-        return;
-      }
-      await Linking.openURL(url);
+      await openExportFile(item.filePaths[0]);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Could not open the export file.';
@@ -160,20 +151,24 @@ function ExportHistoryScreen({ navigation }: any) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtn}>← Back</Text>
+      <View style={commonStyles.screenHeader}>
+        <TouchableOpacity
+          style={commonStyles.iconBtn}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={22} color="#111111" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Export history</Text>
-        <TouchableOpacity onPress={handleClearAll} disabled={history.length === 0}>
-          <Text
-            style={[
-              styles.clearBtn,
-              history.length === 0 && styles.clearBtnDisabled,
-            ]}
-          >
-            Clear
-          </Text>
+        <Text style={commonStyles.headerTitle}>Export history</Text>
+        <TouchableOpacity
+          style={styles.clearBtnWrap}
+          onPress={handleClearAll}
+          disabled={history.length === 0}
+        >
+          <Icon
+            name="trash-can-outline"
+            size={20}
+            color={history.length === 0 ? '#cccccc' : '#A32D2D'}
+          />
         </TouchableOpacity>
       </View>
 
@@ -195,9 +190,11 @@ function ExportHistoryScreen({ navigation }: any) {
                 item.format === 'PDF' ? styles.pdfIcon : styles.csvIcon,
               ]}
             >
-              <Text style={styles.formatIconText}>
-                {item.format === 'PDF' ? '📄' : '📊'}
-              </Text>
+              <Icon
+                name={item.format === 'PDF' ? 'file-pdf-box' : 'file-delimited'}
+                size={20}
+                color={item.format === 'PDF' ? '#993556' : '#0F6E56'}
+              />
             </View>
             <View style={styles.info}>
               <Text style={styles.name}>
@@ -215,6 +212,11 @@ function ExportHistoryScreen({ navigation }: any) {
                   item.status === 'done' ? styles.badgeDone : styles.badgeFail,
                 ]}
               >
+                {item.status === 'done' ? (
+                  <Icon name="check" size={12} color="#0F6E56" />
+                ) : (
+                  <Icon name="close" size={12} color="#A32D2D" />
+                )}
                 <Text
                   style={[
                     styles.badgeText,
@@ -223,7 +225,7 @@ function ExportHistoryScreen({ navigation }: any) {
                       : styles.badgeTextFail,
                   ]}
                 >
-                  {item.status === 'done' ? '✓ Done' : '✗ Failed'}
+                  {item.status === 'done' ? 'Done' : 'Failed'}
                 </Text>
               </View>
               <View style={styles.actionBtns}>
@@ -232,7 +234,7 @@ function ExportHistoryScreen({ navigation }: any) {
                     style={styles.actionBtn}
                     onPress={() => handleRetry(item)}
                   >
-                    <Text>🔄</Text>
+                    <Icon name="refresh" size={18} color="#555555" />
                   </TouchableOpacity>
                 ) : (
                   <>
@@ -240,13 +242,13 @@ function ExportHistoryScreen({ navigation }: any) {
                       style={styles.actionBtn}
                       onPress={() => handleShare(item)}
                     >
-                      <Text>📤</Text>
+                      <Icon name="share-variant" size={18} color="#555555" />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.actionBtn}
                       onPress={() => handleOpen(item)}
                     >
-                      <Text>📁</Text>
+                      <Icon name="folder-open" size={18} color="#555555" />
                     </TouchableOpacity>
                   </>
                 )}
@@ -254,7 +256,7 @@ function ExportHistoryScreen({ navigation }: any) {
                   style={styles.actionBtn}
                   onPress={() => handleDelete(item)}
                 >
-                  <Text>🗑️</Text>
+                  <Icon name="trash-can-outline" size={18} color="#A32D2D" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -278,19 +280,12 @@ function ExportHistoryScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  header: {
-    flexDirection: 'row',
+  clearBtnWrap: {
+    width: 38,
+    height: 38,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#eeeeee',
+    justifyContent: 'center',
   },
-  backBtn: { fontSize: 15, color: '#1D9E75', width: 60 },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: '#111111' },
-  clearBtn: { fontSize: 14, color: '#A32D2D', width: 60, textAlign: 'right' },
-  clearBtnDisabled: { color: '#cccccc' },
   errorBanner: {
     backgroundColor: '#FCEBEB',
     paddingHorizontal: 16,
@@ -314,12 +309,14 @@ const styles = StyleSheet.create({
   },
   pdfIcon: { backgroundColor: '#FAECE7' },
   csvIcon: { backgroundColor: '#E1F5EE' },
-  formatIconText: { fontSize: 18 },
   info: { flex: 1 },
   name: { fontSize: 13, fontWeight: '500', color: '#111111', marginBottom: 3 },
   meta: { fontSize: 11, color: '#aaaaaa' },
   actions: { alignItems: 'flex-end', gap: 6 },
   badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 100,
@@ -341,7 +338,12 @@ const styles = StyleSheet.create({
   },
   separator: { height: 0.5, backgroundColor: '#f0f0f0', marginLeft: 68 },
   empty: { alignItems: 'center', paddingTop: 80 },
-  emptyText: { fontSize: 16, fontWeight: '500', color: '#111111', marginBottom: 6 },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111111',
+    marginBottom: 6,
+  },
   emptySub: { fontSize: 13, color: '#aaaaaa' },
 });
 
