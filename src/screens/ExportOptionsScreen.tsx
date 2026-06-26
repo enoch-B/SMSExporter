@@ -8,6 +8,8 @@ import {
   StatusBar,
   ScrollView,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { commonStyles } from '../styles/common';
 
 const DATE_RANGES = ['All time', 'Last 30 days', 'Last 90 days', 'Custom'];
 
@@ -20,51 +22,69 @@ function ExportOptionsScreen({ route, navigation }: any) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtn}>← Back</Text>
+      <View style={commonStyles.screenHeader}>
+        <TouchableOpacity
+          style={commonStyles.iconBtn}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={22} color="#111111" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Export options</Text>
-        <View style={{ width: 60 }} />
+        <Text style={commonStyles.headerTitle}>Export options</Text>
+        <View style={commonStyles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
-
-        {/* Format */}
         <Text style={styles.sectionLabel}>FORMAT</Text>
         <View style={styles.formatRow}>
           {(['PDF', 'CSV'] as const).map(f => (
             <TouchableOpacity
               key={f}
-              style={[styles.formatCard, format === f && styles.formatCardSelected]}
+              style={[
+                styles.formatCard,
+                format === f && styles.formatCardSelected,
+              ]}
               onPress={() => setFormat(f)}
             >
-              <Text style={styles.formatIcon}>{f === 'PDF' ? '📄' : '📊'}</Text>
-              <Text style={[styles.formatName, format === f && styles.formatNameSelected]}>
+              <Icon
+                name={f === 'PDF' ? 'file-pdf-box' : 'file-delimited'}
+                size={20}
+                color={format === f ? '#0F6E56' : '#555555'}
+              />
+              <Text
+                style={[
+                  styles.formatName,
+                  format === f && styles.formatNameSelected,
+                ]}
+              >
                 {f}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Date Range */}
         <Text style={styles.sectionLabel}>DATE RANGE</Text>
         <View style={styles.dateGrid}>
           {DATE_RANGES.map(range => (
             <TouchableOpacity
               key={range}
-              style={[styles.dateChip, dateRange === range && styles.dateChipSelected]}
+              style={[
+                styles.dateChip,
+                dateRange === range && styles.dateChipSelected,
+              ]}
               onPress={() => setDateRange(range)}
             >
-              <Text style={[styles.dateChipText, dateRange === range && styles.dateChipTextSelected]}>
+              <Text
+                style={[
+                  styles.dateChipText,
+                  dateRange === range && styles.dateChipTextSelected,
+                ]}
+              >
                 {range}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Summary */}
         <Text style={styles.sectionLabel}>SUMMARY</Text>
         <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
@@ -73,7 +93,9 @@ function ExportOptionsScreen({ route, navigation }: any) {
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryKey}>Total messages</Text>
-            <Text style={styles.summaryVal}>{totalMessages.toLocaleString()}</Text>
+            <Text style={styles.summaryVal}>
+              {totalMessages.toLocaleString()}
+            </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryKey}>Format</Text>
@@ -85,18 +107,19 @@ function ExportOptionsScreen({ route, navigation }: any) {
           </View>
         </View>
 
-        {/* Start Button */}
-            <TouchableOpacity
-            style={styles.startBtn}
-            onPress={() => navigation.navigate('ExportProgress', {
-                selected: route.params.selected,
-                totalMessages: route.params.totalMessages,
-                format,
-            })}
-            >
-            <Text style={styles.startBtnText}>Start export</Text>
-            </TouchableOpacity>
-
+        <TouchableOpacity
+          style={styles.startBtn}
+          onPress={() =>
+            navigation.navigate('ExportProgress', {
+              selected: route.params.selected,
+              totalMessages: route.params.totalMessages,
+              format,
+            })
+          }
+        >
+          <Icon name="export" size={18} color="#ffffff" />
+          <Text style={styles.startBtnText}>Start export</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -104,17 +127,6 @@ function ExportOptionsScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#eeeeee',
-  },
-  backBtn: { fontSize: 15, color: '#1D9E75', width: 60 },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: '#111111' },
   body: { padding: 16, gap: 12 },
   sectionLabel: {
     fontSize: 11,
@@ -134,8 +146,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
-  formatCardSelected: { borderColor: '#1D9E75', backgroundColor: '#E1F5EE', borderWidth: 1.5 },
-  formatIcon: { fontSize: 18 },
+  formatCardSelected: {
+    borderColor: '#1D9E75',
+    backgroundColor: '#E1F5EE',
+    borderWidth: 1.5,
+  },
   formatName: { fontSize: 14, fontWeight: '500', color: '#111111' },
   formatNameSelected: { color: '#0F6E56' },
   dateGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -146,7 +161,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
-  dateChipSelected: { borderColor: '#1D9E75', backgroundColor: '#E1F5EE', borderWidth: 1.5 },
+  dateChipSelected: {
+    borderColor: '#1D9E75',
+    backgroundColor: '#E1F5EE',
+    borderWidth: 1.5,
+  },
   dateChipText: { fontSize: 13, color: '#555555' },
   dateChipTextSelected: { color: '#0F6E56', fontWeight: '500' },
   summaryCard: {
@@ -161,10 +180,13 @@ const styles = StyleSheet.create({
   summaryKey: { fontSize: 13, color: '#888888' },
   summaryVal: { fontSize: 13, fontWeight: '500', color: '#111111' },
   startBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     backgroundColor: '#1D9E75',
     borderRadius: 12,
     paddingVertical: 14,
-    alignItems: 'center',
     marginTop: 8,
   },
   startBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
