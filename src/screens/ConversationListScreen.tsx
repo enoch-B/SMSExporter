@@ -10,12 +10,14 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   requestSmsPermission,
   getAllConversations,
   Conversation,
 } from '../services/SmsService';
 import DrawerMenu from '../components/DrawerMenu';
+import { commonStyles } from '../styles/common';
 
 function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase();
@@ -44,29 +46,30 @@ function ConversationListScreen({ navigation }: any) {
     loadSms();
   }, []);
 
-const loadSms = async () => {
-  setLoading(true);
-  setLoadingCount(0);
-  const granted = await requestSmsPermission();
-  if (!granted) {
-    setError('SMS permission denied. Please allow it in your phone settings.');
+  const loadSms = async () => {
+    setLoading(true);
+    setLoadingCount(0);
+    const granted = await requestSmsPermission();
+    if (!granted) {
+      setError('SMS permission denied. Please allow it in your phone settings.');
+      setLoading(false);
+      return;
+    }
+    try {
+      const data = await getAllConversations(found => {
+        setLoadingCount(found);
+      });
+      setConversations(data);
+    } catch {
+      setError('Failed to load messages.');
+    }
     setLoading(false);
-    return;
-  }
-  try {
-    const data = await getAllConversations((found) => {
-      setLoadingCount(found);
-    });
-    setConversations(data);
-  } catch (e) {
-    setError('Failed to load messages.');
-  }
-  setLoading(false);
-};
+  };
 
-  const filtered = conversations.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.address.includes(search)
+  const filtered = conversations.filter(
+    c =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.address.includes(search)
   );
 
   const toggleSelect = (address: string) => {
@@ -81,17 +84,17 @@ const loadSms = async () => {
     .filter(c => selected.includes(c.address))
     .reduce((sum, c) => sum + c.count, 0);
 
-if (loading) {
-  return (
-    <SafeAreaView style={styles.centered}>
-      <ActivityIndicator size="large" color="#1D9E75" />
-      <Text style={styles.loadingText}>Reading your messages...</Text>
-      <Text style={styles.loadingCount}>
-        {loadingCount.toLocaleString()} messages found so far
-      </Text>
-    </SafeAreaView>
-  );
-}
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <ActivityIndicator size="large" color="#1D9E75" />
+        <Text style={styles.loadingText}>Reading your messages...</Text>
+        <Text style={styles.loadingCount}>
+          {loadingCount.toLocaleString()} messages found so far
+        </Text>
+      </SafeAreaView>
+    );
+  }
 
   if (error) {
     return (
@@ -108,18 +111,16 @@ if (loading) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
+      <View style={commonStyles.screenHeader}>
+        <Text style={commonStyles.headerTitleLarge}>Messages</Text>
         <TouchableOpacity
-          style={styles.menuBtn}
+          style={commonStyles.iconBtn}
           onPress={() => setDrawerOpen(true)}
         >
-          <Text style={styles.menuIcon}>☰</Text>
+          <Icon name="menu" size={22} color="#111111" />
         </TouchableOpacity>
       </View>
 
-      {/* Search */}
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -130,7 +131,6 @@ if (loading) {
         />
       </View>
 
-      {/* List */}
       <FlatList
         data={filtered}
         keyExtractor={item => item.address}
@@ -144,7 +144,9 @@ if (loading) {
           <View style={styles.empty}>
             <Text style={styles.emptyText}>No conversations found</Text>
             <Text style={styles.emptySub}>
-              {search ? 'Try a different search term' : 'No SMS conversations on this device'}
+              {search
+                ? 'Try a different search term'
+                : 'No SMS conversations on this device'}
             </Text>
           </View>
         )}
@@ -152,37 +154,46 @@ if (loading) {
           const color = COLORS[index % COLORS.length];
           const isSelected = selected.includes(item.address);
           return (
-          <TouchableOpacity
-            style={styles.item}
-            onPress={() => navigation.navigate('MessageDetail', { conversation: item })}
-            onLongPress={() => toggleSelect(item.address)}
-          >
-              <View style={[styles.avatar, { backgroundColor: color.bg }]}>
-                <Text style={[styles.avatarText, { color: color.text }]}>
-                  {getInitials(item.name)}
-                </Text>
-              </View>
-              <View style={styles.info}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.preview} numberOfLines={1}>
-                  {item.lastMessage}
-                </Text>
-              </View>
-              <View style={styles.meta}>
-                <Text style={styles.time}>{item.lastDate}</Text>
-                <Text style={styles.count}>
-                  {item.count.toLocaleString()} msgs
-                </Text>
-                <View
-                  style={[
-                    styles.checkbox,
-                    isSelected && styles.checkboxSelected,
-                  ]}
-                >
-                  {isSelected && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() =>
+                navigation.navigate('MessageDetail', { conversation: item })
+              }
+            >
+              <View style={styles.item}>
+                <View style={[styles.avatar, { backgroundColor: color.bg }]}>
+                  <Text style={[styles.avatarText, { color: color.text }]}>
+                    {getInitials(item.name)}
+                  </Text>
                 </View>
+                <View style={styles.info}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  <Text style={styles.preview} numberOfLines={1}>
+                    {item.lastMessage}
+                  </Text>
+                </View>
+                <View style={styles.meta}>
+                  <Text style={styles.time}>{item.lastDate}</Text>
+                  <Text style={styles.count}>
+                    {item.count.toLocaleString()} msgs
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.checkboxHitArea}
+                  onPress={() => toggleSelect(item.address)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      isSelected && styles.checkboxSelected,
+                    ]}
+                  >
+                    {isSelected && (
+                      <Icon name="check" size={14} color="#ffffff" />
+                    )}
+                  </View>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           );
@@ -190,11 +201,11 @@ if (loading) {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
 
-      {/* Export Bar */}
       {selected.length > 0 && (
         <View style={styles.exportBar}>
           <Text style={styles.exportInfo}>
-            {selected.length} selected · {totalMessages.toLocaleString()} messages
+            {selected.length} selected · {totalMessages.toLocaleString()}{' '}
+            messages
           </Text>
           <TouchableOpacity
             style={styles.exportBtn}
@@ -207,7 +218,8 @@ if (loading) {
               })
             }
           >
-            <Text style={styles.exportBtnText}>Export →</Text>
+            <Icon name="export" size={16} color="#ffffff" />
+            <Text style={styles.exportBtnText}>Export</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -248,18 +260,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   retryBtnText: { color: '#ffffff', fontWeight: '600' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#eeeeee',
-  },
-  headerTitle: { fontSize: 20, fontWeight: '600', color: '#111111' },
-  menuBtn: { padding: 4 },
-  menuIcon: { fontSize: 20, color: '#555555' },
   searchContainer: { paddingHorizontal: 16, paddingVertical: 10 },
   searchInput: {
     backgroundColor: '#f5f5f5',
@@ -292,17 +292,19 @@ const styles = StyleSheet.create({
   meta: { alignItems: 'flex-end', gap: 4 },
   time: { fontSize: 11, color: '#aaaaaa' },
   count: { fontSize: 10, color: '#aaaaaa' },
+  checkboxHitArea: {
+    padding: 2,
+  },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 1.5,
     borderColor: '#cccccc',
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxSelected: { backgroundColor: '#1D9E75', borderColor: '#1D9E75' },
-  checkmark: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
   separator: {
     height: 0.5,
     backgroundColor: '#f0f0f0',
@@ -320,8 +322,11 @@ const styles = StyleSheet.create({
   },
   exportInfo: { fontSize: 13, color: '#555555' },
   exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: '#1D9E75',
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 10,
   },
@@ -333,7 +338,12 @@ const styles = StyleSheet.create({
   },
   exportBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
   empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 24 },
-  emptyText: { fontSize: 16, fontWeight: '500', color: '#111111', marginBottom: 6 },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111111',
+    marginBottom: 6,
+  },
   emptySub: { fontSize: 13, color: '#aaaaaa', textAlign: 'center' },
 });
 
