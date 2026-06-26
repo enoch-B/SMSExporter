@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 type Props = {
   visible: boolean;
@@ -26,21 +27,21 @@ function DrawerMenu({ visible, onClose, onNavigate }: Props) {
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
             <View style={styles.drawer}>
-
-              {/* App header */}
               <View style={styles.drawerHeader}>
                 <Text style={styles.appName}>SMS Exporter</Text>
                 <Text style={styles.appVersion}>v1.0.0</Text>
               </View>
 
-              {/* Tools section */}
               <Text style={styles.sectionLabel}>TOOLS</Text>
               <TouchableOpacity
                 style={styles.drawerItem}
-                onPress={() => { onClose(); onNavigate('ExportHistory'); }}
+                onPress={() => {
+                  onClose();
+                  onNavigate('ExportHistory');
+                }}
               >
                 <View style={[styles.itemIcon, { backgroundColor: '#E1F5EE' }]}>
-                  <Text>🕐</Text>
+                  <Icon name="history" size={20} color="#0F6E56" />
                 </View>
                 <View>
                   <Text style={styles.itemLabel}>Export history</Text>
@@ -50,14 +51,16 @@ function DrawerMenu({ visible, onClose, onNavigate }: Props) {
 
               <View style={styles.divider} />
 
-              {/* Preferences section */}
               <Text style={styles.sectionLabel}>PREFERENCES</Text>
               <TouchableOpacity
                 style={styles.drawerItem}
-                onPress={() => { onClose(); onNavigate('PrivacySettings'); }}
+                onPress={() => {
+                  onClose();
+                  onNavigate('PrivacySettings');
+                }}
               >
                 <View style={[styles.itemIcon, { backgroundColor: '#f5f5f5' }]}>
-                  <Text>🔒</Text>
+                  <Icon name="shield-lock" size={20} color="#555555" />
                 </View>
                 <View>
                   <Text style={styles.itemLabel}>Privacy settings</Text>
@@ -67,7 +70,7 @@ function DrawerMenu({ visible, onClose, onNavigate }: Props) {
 
               <TouchableOpacity style={styles.drawerItem}>
                 <View style={[styles.itemIcon, { backgroundColor: '#f5f5f5' }]}>
-                  <Text>⚙️</Text>
+                  <Icon name="cog" size={20} color="#555555" />
                 </View>
                 <View>
                   <Text style={styles.itemLabel}>App settings</Text>
@@ -77,17 +80,17 @@ function DrawerMenu({ visible, onClose, onNavigate }: Props) {
 
               <View style={styles.divider} />
 
-              {/* Danger */}
               <TouchableOpacity style={styles.drawerItem}>
                 <View style={[styles.itemIcon, { backgroundColor: '#FCEBEB' }]}>
-                  <Text>🗑️</Text>
+                  <Icon name="trash-can-outline" size={20} color="#A32D2D" />
                 </View>
                 <View>
-                  <Text style={[styles.itemLabel, { color: '#A32D2D' }]}>Clear all data</Text>
+                  <Text style={[styles.itemLabel, { color: '#A32D2D' }]}>
+                    Clear all data
+                  </Text>
                   <Text style={styles.itemSub}>Delete export history</Text>
                 </View>
               </TouchableOpacity>
-
             </View>
           </TouchableWithoutFeedback>
         </View>
