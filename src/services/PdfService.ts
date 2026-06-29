@@ -117,6 +117,33 @@ function formatShortDate(dateStr: string): string {
   return new Date(parseInt(dateStr)).toDateString();
 }
 
+function filterByDateRange(
+  messages: SmsMessage[],
+  dateRange: string,
+  customFrom?: number,
+  customTo?: number
+): SmsMessage[] {
+  const now = Date.now();
+  const ranges: { [key: string]: number } = {
+    'Last 30 days': 30 * 24 * 60 * 60 * 1000,
+    'Last 90 days': 90 * 24 * 60 * 60 * 1000,
+  };
+
+  if (dateRange === 'All time') return messages;
+
+  if (dateRange === 'Custom' && customFrom != null && customTo != null) {
+    return messages.filter(msg => {
+      const ts = parseInt(msg.date);
+      return ts >= customFrom && ts <= customTo;
+    });
+  }
+
+  const cutoff = ranges[dateRange];
+  if (!cutoff) return messages;
+
+  return messages.filter(msg => now - parseInt(msg.date) <= cutoff);
+}
+
 function buildMessagesHtml(messages: SmsMessage[]): string {
   const sorted = [...messages].sort(
     (a, b) => parseInt(a.date) - parseInt(b.date)
@@ -155,6 +182,7 @@ function buildMessagesHtml(messages: SmsMessage[]): string {
 
 function buildHtml(
   conversation: Conversation,
+  filteredMessages: SmsMessage[],
   pageNumber: number,
   totalPages: number
 ): string {
@@ -212,9 +240,9 @@ function buildHtml(
     <body>
       <div class="header">
         <h1>${conversation.name}</h1>
-        <p>${conversation.count.toLocaleString()} messages · Exported on ${new Date().toLocaleDateString()} · Page ${pageNumber} of ${totalPages}</p>
+        <p>${filteredMessages.length.toLocaleString()} messages · Exported on ${new Date().toLocaleDateString()} · Page ${pageNumber} of ${totalPages}</p>
       </div>
-      ${buildMessagesHtml(conversation.messages)}
+      ${buildMessagesHtml(filteredMessages)}
       <div class="footer">
         Exported by SMS Exporter · Page ${pageNumber} of ${totalPages}
       </div>
@@ -223,7 +251,7 @@ function buildHtml(
   `;
 }
 
-const CHUNK_SIZE = 500;
+const CHUNK_SIZE = 1000;
 
 export interface ExportResult {
   filePaths: string[];
@@ -232,11 +260,17 @@ export interface ExportResult {
 
 export async function exportToPdf(
   conversation: Conversation,
-  onProgress: (processed: number, total: number) => void
+  onProgress: (processed: number, total: number) => void,
+  dateRange: string = 'All time',
+  customFrom?: number,
+  customTo?: number
 ): Promise<ExportResult> {
-  const messages = [...conversation.messages].sort(
+  const allMessages = [...conversation.messages].sort(
     (a, b) => parseInt(a.date) - parseInt(b.date)
   );
+
+  // Apply date range filter
+  const messages = filterByDateRange(allMessages, dateRange, customFrom, customTo);
 
   const totalMessages = messages.length;
   const chunks: SmsMessage[][] = [];
@@ -250,12 +284,7 @@ export async function exportToPdf(
   const safeName = sanitizeFileName(conversation.name);
 
   for (let i = 0; i < chunks.length; i++) {
-    const chunkConversation: Conversation = {
-      ...conversation,
-      messages: chunks[i],
-    };
-
-    const html = buildHtml(chunkConversation, i + 1, totalPages);
+    const html = buildHtml(conversation, chunks[i], i + 1, totalPages);
     const partSuffix = totalPages > 1 ? `_part${i + 1}` : '';
     const fileName = `${safeName}${partSuffix}`;
 
@@ -289,11 +318,17 @@ export async function exportToPdf(
 
 export async function exportToCsv(
   conversation: Conversation,
-  onProgress: (processed: number, total: number) => void
+  onProgress: (processed: number, total: number) => void,
+  dateRange: string = 'All time',
+  customFrom?: number,
+  customTo?: number
 ): Promise<ExportResult> {
-  const messages = [...conversation.messages].sort(
+  const allMessages = [...conversation.messages].sort(
     (a, b) => parseInt(a.date) - parseInt(b.date)
   );
+
+  // Apply date range filter
+  const messages = filterByDateRange(allMessages, dateRange, customFrom, customTo);
 
   let csv = 'Contact,Phone,Direction,Date,Message\n';
 
