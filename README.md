@@ -1,97 +1,228 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# SMS Exporter
 
-# Getting Started
+A fast, privacy-focused Android app that exports your SMS conversations 
+to PDF or CSV — built with React Native CLI and TypeScript.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+---
 
-## Step 1: Start Metro
+## Why SMS Exporter?
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+Your text messages are irreplaceable. Conversations with your partner, 
+family, and friends represent years of memories. If your phone is lost, 
+stolen, or dies suddenly — those messages are gone forever.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+SMS Exporter gives you a clean, readable backup of every conversation 
+you care about, saved directly to your Downloads folder.
 
-```sh
-# Using npm
-npm start
+---
 
-# OR using Yarn
-yarn start
+## Features
+
+### Core
+- Export SMS conversations to **PDF** or **CSV**
+- Beautiful chat-bubble PDF layout (sent messages right, received left)
+- Date separators between days
+- Multi-conversation export — select multiple contacts at once
+- Accurate message count (inbox + sent combined)
+
+### Smart Loading
+- Loads conversation list instantly with no full message scan
+- Shows last 20 messages immediately when you open a conversation
+- Full message history loads silently in the background
+- No double loading screens
+
+### Message Detail
+- Full chat bubble view of any conversation
+- **Search inside messages** with keyword highlighting
+- Match count displayed ("12 of 340 matches")
+- Jump to first message / latest message buttons
+- Export directly from the conversation view
+
+### Export Options
+- Choose format: PDF or CSV
+- Filter by date range: All time, Last 30 days, Last 90 days, Custom
+- Summary card showing message count and estimated output before export
+- Real-time progress with live message counter and log
+
+### Privacy & Security
+- All processing happens **on your device** — no data leaves your phone
+- No internet connection required
+- No analytics or tracking (optional, off by default)
+- Privacy settings: blur phone numbers, local-only saves, auto-delete exports
+
+### History & Management
+- Export history with file size, date, and status
+- Share exported files directly from the app
+- Retry failed exports
+- Clear individual records or entire history
+
+---
+
+## Screenshots
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React Native CLI 0.86.0 |
+| Language | TypeScript |
+| Navigation | @react-navigation/native-stack |
+| SMS Reading | react-native-get-sms-android |
+| Contacts | react-native-contacts |
+| PDF Generation | react-native-html-to-pdf |
+| File System | react-native-fs |
+| Icons | react-native-vector-icons (MaterialCommunityIcons) |
+| Storage | AsyncStorage |
+
+---
+
+## Architecture
+
+``` 
+src/
+├── screens/
+│   ├── ConversationListScreen.tsx   # Main conversation list with search
+│   ├── MessageDetailScreen.tsx      # Chat bubble view with search
+│   ├── ExportOptionsScreen.tsx      # Format and date range selection
+│   ├── ExportProgressScreen.tsx     # Live export progress
+│   ├── ExportHistoryScreen.tsx      # Past exports with AsyncStorage
+│   └── PrivacySettingsScreen.tsx    # Privacy toggles
+├── services/
+│   ├── SmsService.ts               # SMS reading and contact resolution
+│   └── PdfService.ts               # PDF/CSV generation and file saving
+├── components/
+│   └── DrawerMenu.tsx              # Side navigation drawer (Modal-based)
+└── styles/
+└── common.ts                   # Shared design tokens and styles
 ```
 
-## Step 2: Build and run your app
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+### PDF Generation
 
-### Android
+Messages are sorted chronologically (inbox + sent interleaved by timestamp), 
+converted to HTML with chat bubble styling, then rendered to PDF using 
+the device's built-in PDF engine. The file is saved to your Downloads folder.
 
-```sh
-# Using npm
-npm run android
+---
 
-# OR using Yarn
-yarn android
+## Setup & Installation
+
+### Prerequisites
+
+- Node.js 18+
+- JDK 17
+- Android Studio (for SDK and emulator)
+- Android device or emulator running Android 6.0+
+
+### Install
+
+```bash
+git clone https://github.com/enoch-B/sms-exporter
+cd sms-exporter
+npm install
 ```
 
-### iOS
+### Run on device
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+```bash
+# Terminal 1 — start Metro bundler
+npx react-native start
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+# Terminal 2 — build and install
+npx react-native run-android
 ```
 
-Then, and every time you update your native dependencies, run:
+### First run
 
-```sh
-bundle exec pod install
-```
+The app will request two permissions on first launch:
+- **Read SMS** — required to access your messages
+- **Read Contacts** — required to show contact names instead of phone numbers
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+---
 
-```sh
-# Using npm
-npm run ios
+## Permissions
 
-# OR using Yarn
-yarn ios
-```
+| Permission | Why |
+|---|---|
+| `READ_SMS` | Read your SMS messages for export |
+| `READ_CONTACTS` | Resolve phone numbers to contact names |
+| `WRITE_EXTERNAL_STORAGE` | Save exported files to Downloads folder |
+| `READ_EXTERNAL_STORAGE` | Access saved export files |
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+All permissions are requested at runtime. The app functions with SMS 
+permission only — contacts permission is optional but recommended.
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+---
 
-## Step 3: Modify your app
+## Known Limitations
 
-Now that you have successfully run the app, let's make changes!
+- **Android only** — iOS locks down SMS access entirely
+- **MMS not supported** — images and media in messages are not exported
+- **Large conversations** — exporting 40,000+ messages to PDF takes 
+  2-5 minutes depending on device speed
+- **Data lag** — messages appear as sent to contacts that are not in 
+  your phonebook show as phone numbers
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+---
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## Performance Notes
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+| Metric | Value |
+|---|---|
+| Conversation list load time | ~3-8 seconds (first load) |
+| Messages held in memory (list view) | 20 per conversation |
+| Max tested message count | 42,000+ messages |
+| PDF generation (1,000 messages) | ~10 seconds |
+| PDF generation (42,000 messages) | ~3-5 minutes |
 
-## Congratulations! :tada:
+---
 
-You've successfully run and modified your React Native App. :partying_face:
+## Design System
 
-### Now what?
+| Token | Value |
+|---|---|
+| Primary | `#1D9E75` |
+| Background | `#ffffff` |
+| Text Primary | `#111111` |
+| Text Secondary | `#888888` |
+| Border | `#e0e0e0` |
+| Success | `#E1F5EE` / `#0F6E56` |
+| Error | `#FCEBEB` / `#A32D2D` |
+| Border radius | `10-12px` |
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+---
 
-# Troubleshooting
+## Roadmap
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+- [ ] Scheduled auto-backup (weekly/monthly)
+- [ ] Google Drive upload after export
+- [ ] Conversation stats (sent vs received, most active month)
+- [ ] PIN lock / biometric protection
+- [ ] Password protected PDF export
+- [ ] Multiple PDF themes (document style, minimal)
+- [ ] WhatsApp chat export parser
+- [ ] Dual SIM support
 
-# Learn More
+---
 
-To learn more about React Native, take a look at the following resources:
+## Developer
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+**Henok Birhanu**  
+
+- GitHub: [@enoch-B](https://github.com/enoch-B)  
+- Portfolio: [henok-birhanu.vercel.app](https://henok-dev.vercel.app)
+
+---
+
+## License
+
+MIT License — free to use, modify, and distribute.
+
+---
+
+## Acknowledgements
+
+Built to solve a real problem — 42,000 messages worth of memories 
+deserve a proper backup.
